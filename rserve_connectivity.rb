@@ -1,6 +1,32 @@
 
 require "rserve"
 
+module Rconnect
+
+  def self.exec r_command, jpeg_file_name=false
+    begin
+      connect
+      r= Rserve::Connection.new.eval(r_command).to_ruby
+      `open #{jpeg_file_name}` if jpeg_file_name
+      puts "result: #{r}"
+      r
+    rescue Rserve::Connection::RserveNotStartedError
+      "CANNOT RUN R-SERVE".yellow
+    end
+  end
+
+  def self.connect
+    r_command="2+2"
+    begin
+      puts (Rserve::Connection.new.eval(r_command)).to_s
+      puts "yeah, we have rserve running"
+    rescue Rserve::Connection::RserveNotStartedError
+      puts
+      x=IO.popen "Rscript ../r/rserve_start.r"
+      puts x.gets
+    end
+  end
+end
 
 module AAA
 

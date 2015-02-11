@@ -1,0 +1,43 @@
+
+# working directory for loading images
+WORKING_DIR: "/Users/carlobifulco/Dropbox/path/path_research/BMS_NY_PE_Relationships/test_datasets_ruby"
+
+# globs for images and files
+
+
+
+
+CELL_SEG_DATA_SUMMARY_REG: "*cell_seg_data_summary.txt"
+IMAGE_SCORE_MAP: "*image_with_score_map.jpg"
+COMPOSITE_IMAGE: "*composite_image.jpg"
+
+#
+IMAGE_WITH_PHENOTYPE: "*image_with_phenotype_map.jpg"
+
+# segmentation image
+IMAGE_WITH_TISSUE_SEG: "*image_with_tissue_seg.tif"
+
+
+
+
+#################### Key files for analysis
+
+### summary file with area in pixels per region
+# density information in compartments
+TISSUE_SEG_DATA_SUMMARY: "*tissue_seg_data_summary.txt"
+
+### positional data for identified cells
+# positional and cell segmentation results
+CELL_SEG_DATA_REG: "*cell_seg_data.txt"
+PHENOTYPES:
+  - "CD8"
+  - "Tumor"
+  - "PD-L1 tumor"
+  - "T reg"
+  - "PD-L1- Macs"
+  - "PD-L1+ Macs"
+  - "CD4"
+REGIONS:
+  - background
+  - tumor
+  - stroma

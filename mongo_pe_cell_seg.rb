@@ -1,125 +1,4 @@
 require_relative "analyzer"
-require "rserve"
-require_relative "loader"
-
-
-
-class CaseData
-  include MongoMapper::Document
-  include DataUtilities
-  safe
-  timestamps!
-  many :cell_seg
-  many :hpf_image
-  key :case_id, String
-
-  def self.get_case case_id
-    self.find_by_case_id(case_id) or self.new({:case_id=>case_id})
-  end
-
-  def show_simple_plots
-    self.hpf_image.each {|x| x.plot_simple}
-  end
-
-  def mega_table_path
-    return false if self.hpf_image.length==0
-    File.dirname(self.hpf_image[0].cell_seg_data_summary_table_path)\
-                                  +"/"+self.case_id+"_mega_table.csv"
-  end
-
-  def merge_all_cell_seq_tables
-    return if not self.mega_table_path
-    command=["bio-table"]
-    self.hpf_image.each {|x| command << x.cell_seg_data_summary_table_path}
-    command<<"> #{self.mega_table_path}"
-    command=command.join " "
-    puts command
-    `#{command}`
-  end
-
-end
-
-### Image Storage
-class HpfImage
-  include MongoMapper::Document
-  include DataUtilities
-  timestamps!
-  safe
-  belongs_to :case_data
-  after_create :hpf_id_create, :case_id_create
-  key :file_path, String
-  key :hpf_id, String
-  key :case_id, String
-  key :cell_seg_data_summary_table_path,String
-  #images
-  key :composite_image, String
-  key :image_with_cell_seg_map, String
-  key :phenotype_map, String
-  key :image_with_score_map, String
-  key :image_with_tissue_seg,String
-  key :phenotype_map, String
-  key :tissue_seg_map,String
-  key :raw_tif, String
-
-  def hpf_id_create
-    self.hpf_id=/.*\]/.match(File.basename self.file_path).to_s.gsub(" ","_")
-  end
-
-  def case_id_create
-    m=/(.*)_HP.*/.match(self.hpf_id)
-    self.case_id=m[1].to_s if m
-  end
-
-  def self.get_hpf_image file_path
-    hpf_id=/.*\]/.match(File.basename file_path).to_s.gsub(" ","_")
-    self.find_by_hpf_id(hpf_id) or self.new({:file_path=>file_path})
-  end
-
-  def show image_type
-    puts self[image_type.to_sym]
-    `open #{self[image_type.to_sym]}`
-    sleep 1
-  end
-
-  # def show image_type
-  #   t_f=Tempfile.new(["#{image_type.to_s+Random.rand.to_s.split(".")[1]}",".png"])
-  #   puts t_f.path
-  #   t_f.write self[image_type].to_s
-  #   t_f.close
-  #
-  #   #{}`open #{t_f.path}`
-  #   sleep 1
-  #   #t_f.unlink
-  # end
-
-  def show_key
-    [:raw_tif, :composite_image, :phenotype_map, :image_with_tissue_seg]\
-                .each {|x| self.show x}
-    plot_simple
-  end
-end
-
-### R utilities
-class HpfImage
-  def plot_simple
-    jpeg_file_name=self.cell_seg_data_summary_table_path.gsub(".csv",".jpeg")
-    r_command="
-    jpeg(file='#{jpeg_file_name}')
-    library('ggplot2', lib.loc='/Library/Frameworks/R.framework/Versions/3.1/Resources/library')
-    d= read.csv('#{self.cell_seg_data_summary_table_path}', stringsAsFactors=FALSE)
-    w=summary(factor(d$phenotype))
-    w=data.frame(w)
-    print(qplot(rownames(w), w$w)+coord_flip()+ylab('counts')+xlab('cell types'))
-    dev.off()
-    "
-    puts r_command
-    begin
-      Rserve::Connection.new.eval(r_command)
-      `open #{jpeg_file_name}`
-    rescue Rserve::Connection::RserveNotStartedError
-    end
-  end
-end
 
 class CellSeg
   include MongoMapper::Document
@@ -136,6 +15,8 @@ class CellSeg
   key :cell_id, Integer
   key :cell_x_position, Integer
   key :cell_y_position, Integer
+  key :phenotype, String
+  key :tissue_category, String
   key :confidence, String
   key :cytoplasm_alexa_514_max_normalized_counts_total_weighting, Float
   key :cytoplasm_alexa_514_mean_normalized_counts_total_weighting, Float
@@ -326,11 +207,11 @@ class CellSeg
   key :nucleus_major_axis, Float
   key :nucleus_minor_axis, Float
   key :path, String
-  key :phenotype, String
+
   key :process_region_id, String
   key :sample_name, String
   key :slide_id, String
-  key :tissue_category, String
+
   key :tissue_category_area_pixels, String
   key :tma_column, Integer
   key :tma_field, Integer
@@ -346,6 +227,8 @@ class CellSeg
     m=/(.*)_HP.*/.match(self.hpf_id)
     self.case_id=m[1].to_s if m
   end
+
+
 
 
 end

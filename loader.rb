@@ -1,5 +1,5 @@
 require_relative "analyzer"
-require_relative "mongo_pe_data_structure"
+require_relative "mongo_pe_collections"
 require "YAML"
 
 
@@ -13,6 +13,7 @@ IMAGE_SCORE_MAP=CONFIG["IMAGE_SCORE_MAP"]
 COMPOSITE_IMAGE=CONFIG["COMPOSITE_IMAGE"]
 IMAGE_WITH_PHENOTYPE=CONFIG["IMAGE_WITH_PHENOTYPE"]
 IMAGE_WITH_TISSUE_SEG=CONFIG["IMAGE_WITH_TISSUE_SEG"]
+TISSUE_SEG_DATA_SUMMARY=CONFIG["TISSUE_SEG_DATA_SUMMARY"]
 
 all="*.*"
 
@@ -96,6 +97,11 @@ def prepare_pe_tables results_matches=[CELL_SEG_DATA_REG,
 end
 
 
+
+
+
+##### Cell seg
+
 ### loads a hi-res cell seg data file into mongo
 # each row becomes an instance of CellSeq
 def cell_seg_data_load file_path
@@ -119,6 +125,37 @@ def cell_seg_data_batch_load
 end
 
 
+##### Tissue seg
+
+
+
+### loads a hi-res cell seg data file into mongo
+# each row becomes an instance of CellSeq
+def tissue_seg_data_load file_path
+  t=load_table(file_path)
+  t.each_with_index do |row,i|
+    m=TissueSeg.new
+    t.headers.each do |header|
+      puts "working on #{header} in row #{i}"
+      m[header]=row[header]
+    end
+    m.save
+    c=CaseData.get_case m.case_id
+    c.tissue_seg << m
+    c.save
+  end
+end
+
+### batch load of tables
+def tissue_seg_data_batch_load
+  match TISSUE_SEG_DATA_SUMMARY, :tissue_seg_data_load
+end
+
+
+
+
+
+
 #batch load of images
 def image_load_batch
 
@@ -134,7 +171,7 @@ def image_load file_path
   h=HpfImage.get_hpf_image file_path
   #puts "here we fail --I hope"
   q=image_type(file_path)
-  h.cell_seg_data_summary_table_path=image_table_path(file_path)
+  h.cell_seg_data_summary_table_path=image_table_path(file_path).gsub(" ","_")
   # puts "failure cause is #{q}"
   begin
     #h[image_type(file_path)]=file_path
@@ -149,6 +186,24 @@ def image_load file_path
     puts "#{q}=>#{file_path}".red
   end
   #
+end
+
+
+###### execute all
+
+def upload_data
+  prepare_pe_tables
+  cell_seg_data_batch_load
+  tissue_seg_data_batch_load
+  image_load_batch
+end
+
+def delete_all
+  CellSeg.delete_all
+  HpfImage.delete_all
+  TissueSeg.delete_all
+  CaseData.delete_all
+
 end
 
 
