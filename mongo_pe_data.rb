@@ -14,6 +14,9 @@ class CaseData
   many :tissue_seg
   many :hpf_image
   key :case_id, String
+  key :plot_densities_pdf_path, String
+  key :case_derivative_directory_path, String
+  after_create :create_derivative_folder
 
   def self.get_case case_id
     self.find_by_case_id(case_id) or self.new({:case_id=>case_id})
@@ -44,7 +47,7 @@ class CaseData
     self.hpf_image.each do |x|
       r<<x.cell_density_tsv
     end
-    (r.prepend("unique_id\tphenotype-compartment\tdensity (cells/mm2)")) if header
+    (r.prepend("unique_id\tphenotype_compartment\tdensity_cells_mm2")) if header
     r.flatten.join("\n")
   end
 
@@ -54,6 +57,25 @@ class CaseData
     file_path
   end
 
+  def show_composite
+    self.hpf_image.each {|x| x.show :composite_image}
+  end
+
+  def export_derivative
+    `cp #{self.plot_densities_pdf_path} #{self.case_derivative_directory_path}`
+  end
+
+  def create_derivative_folder
+    self.case_derivative_directory_path=CONFIG['DERIVATIVE_FOLDER']+"/"+self.case_id
+    Dir.mkdir  self.case_derivative_directory_path unless Dir.exists? self.case_derivative_directory_path
+    self.save
+    self.case_derivative_directory_path
+  end
+
+  def review
+    file_list=Dir.glob("#{self.case_derivative_directory_path}/*/**").join " "
+    `open #{file_list}`
+  end
 end
 
 
@@ -67,7 +89,7 @@ class CaseData
     pdf(file='#{pdf_file_name}')
     library('ggplot2')
     d <- read.delim('#{file_path}')
-    print(ggplot(d, aes(phenotype.compartment, density..cells.mm2.))+ geom_boxplot()+ theme(axis.text.x =
+    print(ggplot(d, aes(phenotype_compartment, density_cells_mm2))+ geom_boxplot()+ theme(axis.text.x =
     element_text(size  = 8,
     angle = 90,
     hjust = 0,
@@ -76,6 +98,8 @@ class CaseData
     "
     puts r_command
     Rconnect.exec r_command, pdf_file_name
+    self.plot_densities_pdf_path=pdf_file_name
+    self.save
   end
 end
 
@@ -101,6 +125,11 @@ class HpfImage
   key :phenotype_map, String
   key :tissue_seg_map,String
   key :raw_tif, String
+
+  # derivative images
+  key :plot_simple_pdf_path, String
+  key :hpf_derivative_directory_path, String
+  after_create :create_derivative_folder
 
   def hpf_id_create
     self.hpf_id=/.*\]/.match(File.basename self.file_path).to_s.gsub(" ","_")
@@ -145,6 +174,24 @@ class HpfImage
     file_path
   end
 
+  def create_derivative_folder
+    return false if self.case_data.case_derivative_directory_path==nil
+    self.hpf_derivative_directory_path=self.case_data.case_derivative_directory_path+"/"+self.hpf_id
+    Dir.mkdir  self.hpf_derivative_directory_path unless Dir.exists? self.hpf_derivative_directory_path
+    self.save
+    self.hpf_derivative_directory_path
+  end
+
+  def export
+    if create_derivative_folder
+      `cp #{self.plot_simple_pdf_path} #{self.hpf_derivative_directory_path}`
+      `cp #{self.composite_image} #{self.hpf_derivative_directory_path}`
+      `cp  #{self.tissue_seg_map} #{self.hpf_derivative_directory_path}`
+    else
+      puts "NO FOLDER FOR HPF EXPORT, FAILED #{self.hpf_id}".green
+    end
+  end
+
   def show image_type
     puts self[image_type.to_sym]
     `open #{self[image_type.to_sym]}`
@@ -174,9 +221,9 @@ class HpfImage
   ### manipulates cell_seg_data
   # note the print wrapper around q plot
   def plot_simple
-    jpeg_file_name=self.cell_seg_data_summary_table_path.gsub(".csv",".jpeg")
+    pdf_file_name=self.cell_seg_data_summary_table_path.gsub(".csv",".pdf")
     r_command="
-    jpeg(file='#{jpeg_file_name}')
+    pdf(file='#{pdf_file_name}')
     library('ggplot2')
     d= read.csv('#{self.cell_seg_data_summary_table_path}', stringsAsFactors=FALSE)
     w=summary(factor(d$phenotype))
@@ -185,6 +232,8 @@ class HpfImage
     dev.off()
     "
     puts r_command
-    Rconnect.exec r_command, jpeg_file_name
+    Rconnect.exec r_command, pdf_file_name
+    self.plot_simple_pdf_path=pdf_file_name
+    self.save
   end
 end

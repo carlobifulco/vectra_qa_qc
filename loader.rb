@@ -15,6 +15,8 @@ IMAGE_WITH_PHENOTYPE=CONFIG["IMAGE_WITH_PHENOTYPE"]
 IMAGE_WITH_TISSUE_SEG=CONFIG["IMAGE_WITH_TISSUE_SEG"]
 TISSUE_SEG_DATA_SUMMARY=CONFIG["TISSUE_SEG_DATA_SUMMARY"]
 
+Dir.mkdir CONFIG["DERIVATIVE_FOLDER"] unless Dir.exists? CONFIG["DERIVATIVE_FOLDER"]
+
 all="*.*"
 
 
@@ -71,7 +73,7 @@ end
 
 
 ### prepare directory by removing all spaces from filenames
-def dir_space_in_file_name_cleaner
+def space_in_file_name_cleaner
   Dir.glob("#{WORKING_DIR}/*.*").each{|x|remove_filename_spaces x}
 end
 
@@ -92,6 +94,7 @@ end
 # and makes the table headers consistent with the database
 def prepare_pe_tables results_matches=[CELL_SEG_DATA_REG,
                                         CELL_SEG_DATA_SUMMARY_REG]
+  space_in_file_name_cleaner
   results_matches.each{|x| match(x,:remove_filename_spaces)}
   results_matches.each{|x| match(x, :clean_pe_tab)}
 end

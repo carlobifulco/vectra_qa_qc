@@ -29,6 +29,7 @@ TISSUE_SEG_DATA_SUMMARY: "*tissue_seg_data_summary.txt"
 ### positional data for identified cells
 # positional and cell segmentation results
 CELL_SEG_DATA_REG: "*cell_seg_data.txt"
+
 PHENOTYPES:
   - "CD8"
   - "Tumor"
@@ -37,7 +38,11 @@ PHENOTYPES:
   - "PD-L1- Macs"
   - "PD-L1+ Macs"
   - "CD4"
+
 REGIONS:
   - background
   - tumor
   - stroma
+
+
+DERIVATIVE_FOLDER: "/Users/carlobifulco/Dropbox/path/path_research/BMS_NY_PE_Relationships/derivative_results"
